@@ -1,0 +1,89 @@
+--- First table is used to combinwe all the amazon reports into one table
+---Date ranges are 01-01-2019 to 09-30-2022
+create table OCF.all_reports as(
+SELECT * FROM OCF.2019_reports
+UNION
+SELECT * FROM OCF.2020_reports
+UNION 
+SELECT * FROM OCF.2021_report
+UNION
+SELECT * FROM OCF.2022_reports
+)
+
+
+--- Had to load the data into python to easily reformat the datetimes in seperate columns
+os.chdir('Desktop/mojo')
+df = pd.read_csv('orders.csv')
+df['date/time'].str.split(" ", expand = True)
+df['month'] = df['date/time'].str.split(" ", expand = True)[0]
+df['day'] = df['date/time'].str.split(" ", expand = True)[1]
+df['year'] = df['date/time'].str.split(" ", expand = True)[2]
+df['day'] = df['day'].str.split(",", expand = True)[0]
+df.to_csv('reporting.csv')
+
+---Re uploading the data that has seperated columns for mm, dd , yyyy
+--- using case when to assign numbers to months in seperate columns
+---Concat the strings and transform to datetime
+create table OCF.full_report as (
+with months as (
+select *, case when month = 'Jan' then 1
+when month = 'Feb' then 2
+when month = 'Mar' then 3
+when month = 'Apr' then 4
+when month = 'May' then 5
+when month = 'Jun' then 6
+when month = 'Jul' then 7
+when month = 'Aug' then 8
+when month = 'Sep' then 9
+when month = 'Oct' then 10
+when month = 'Nov' then 11
+when month = 'Dec' then 12 end as monthnum
+from OCF.reporting)
+, conc as 
+(select *,concat(year,'/', monthnum, '/', day) as datescrap from months)
+select *, cast( datescrap as datetime) as date from conc
+)
+--- Looking at the individual names 
+select distinct(description) from OCF.full_report
+
+
+---- Creating a table to clean the terrible product names
+create table OCF.master_table as(
+with a as(
+select *, trim("Premium" from description) as product from  OCF.full_report
+)
+,b as (
+select *,case when product like "%Winter Rye%" then "winter rye"
+when product like "%Green Sand%" or product like "greensand" or product like "%Greensand%" then 'greensand' 
+when product like "%Corn Gluten%" then "corn gluten" 
+when product like "%Copper Sulfate%" then "copper sulfate"
+when product like '%Taps/spouts/spile%' then "Syrup Kit"
+when product like "%Syrup%" or product like "%Maple Syrup Tap Kit%" or product like "%Tapping Kit%" or product like "Tapping Kit%" or product like "Tapping Kit"  then "tap kit" 
+when product like "Jugs%"  then "syrup jugs" 
+when product like "%Urea%" then "urea" 
+when product like '%Vacuum Line%' or product like '%Sap Line%' then 'hose' 
+when product like '%yster%' then 'oyster shell' 
+when product like '%St%' then 'garden staples' 
+when product like '%lfalf%' then 'alfalfa' 
+when product like '%eets%' then 'sugar beets' 
+when product like 'Sulfur%' then 'sulfur' 
+when product like '%Aluminum%' then 'aluminium sulfate'
+when product = ' Aluminium Sulfate 5lbs. By Old Cobblers Farm' then 'aluminium sulfate'
+when product like  '%uckwhea%' then 'buckwheat'
+when product like '%20-20-20%' then '20-20-20'
+when product like '%Damaged%' then 'damaged/return'
+when product like '%Potatoes' or product like '%Potatoes%' then 'potatoes'
+when product like '%Rock Phosphate%' then 'rock phosphate'
+when product like '%Phlox%' then 'pack'
+when product like 'Millennium%' then 'millennium'
+when product like 'Jack%' then 'jacks'
+when product like '%Blood%' then 'bloodmeal'
+when product like'%Wax%' then 'wax' 
+when product like 'Daylily%' or product like '%Bulbs%' then 'flowers'
+end as products
+from a)
+select  `date/time`, `settlement id`, type, `order id`, sku, description, quantity, marketplace, `account type`, fulfillment, `order city`, `order state`, `order postal`, `tax collection model`, 
+ `product sales`, `product sales tax`, `shipping credits`, `shipping credits tax`, `gift wrap credits`, `giftwrap credits tax`, `Regulatory Fee`, `Tax On Regulatory Fee`, `promotional rebates`, 
+`promotional rebates tax`, `marketplace withheld tax`, `selling fees`, `fba fees`, `other transaction fees`, other, total, date, product, product as product_cat
+from b
+)
