@@ -1,0 +1,9 @@
+---EDA table fro each product created in sql
+---- Top state is TX for sum 
+select products,  sum(quantity) as quantity_sum, min(quantity) as quantity_min , 
+ avg(quantity) as quantity_avg,max(quantity) as quantity_max,
+ sum(`selling fees`) as selling_fees_sum, min(`selling fees`) as selling_fees_min,avg(`selling fees`) as selling_fees_avg, max(`selling fees`) as selling_fees_max ,
+sum(`fba fees`) as fba_fees_sum, min(`fba fees`) as fba_fees_min ,avg(`fba fees`) as fba_fees_avg, max(`fba fees`) as fba_fees_max,
+sum(total) as total_sum, min(total) as total_min,avg(total) as total_avg, max(total) as total_max
+from OCF.master_table
+group by products
